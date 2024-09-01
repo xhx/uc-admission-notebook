@@ -6,6 +6,12 @@ main = Blueprint('main', __name__)
 
 @main.route('/', methods=['GET', 'POST'])
 def index():
+    welcome_message = "Welcome to the High School Data Analysis Tool!"
+    instructions = [
+        "Upload an Excel file (.xlsx) containing high school data.",
+        "After uploading, you'll be redirected to the query page.",
+        "On the query page, you can analyze the uploaded data."
+    ]
     if request.method == 'POST':
         if 'file' not in request.files:
             return redirect(request.url)
@@ -16,7 +22,7 @@ def index():
             db = next(get_db())
             crud.process_excel_file(db, file)
             return redirect(url_for('main.query'))
-    return render_template('index.html')
+    return render_template('index.html', welcome_message=welcome_message, instructions=instructions)
 
 @main.route('/query', methods=['GET', 'POST'])
 def query():

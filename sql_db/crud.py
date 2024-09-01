@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from . import models
 import pandas as pd
+import os
 
 def process_excel_file(db: Session, file):
     df = pd.read_excel(file)
@@ -117,5 +118,32 @@ def seed_uc_campuses(db: Session):
         if not existing_campus:
             new_campus = models.UCCampus(**campus_data)
             db.add(new_campus)
+    
+    db.commit()
+
+def add_files_to_db(db: Session, files_directory: str):
+    for root, _, files in os.walk(files_directory):
+        for file in files:
+            file_path = os.path.join(root, file)
+            relative_path = os.path.relpath(file_path, start=files_directory)
+            
+            # TODO: Implement logic to extract information from file name
+            # This is a placeholder implementation
+            high_school_type = models.HighSchoolType.ALL
+            uc_campus = get_uc_campus_by_name(db, "Los Angeles")  # Placeholder
+            category = models.Category.GENDER  # Placeholder
+            year = 2023  # Placeholder
+            
+            # Check if file already exists in the database
+            existing_file = db.query(models.File).filter_by(location=relative_path).first()
+            if not existing_file:
+                new_file = models.File(
+                    location=relative_path,
+                    high_school_type=high_school_type,
+                    uc_campus_id=uc_campus.id,
+                    category=category,
+                    year=year
+                )
+                db.add(new_file)
     
     db.commit()

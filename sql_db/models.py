@@ -1,6 +1,19 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Boolean, Enum
 from sqlalchemy.orm import relationship
 from .database import Base
+import enum
+
+class HighSchoolType(enum.Enum):
+    CA_PUBLIC = "CA public"
+    CA_PRIVATE = "CA private"
+    NON_CA = "non-CA"
+    FOREIGN = "Foreign"
+    ALL = "All"
+
+class Category(enum.Enum):
+    GENDER = "Gender"
+    ETHNICITY = "Ethnicity"
+    GPA = "GPA"
 
 class HighSchool(Base):
     __tablename__ = "high_schools"
@@ -28,6 +41,7 @@ class UCCampus(Base):
     admissions = relationship("Admission", back_populates="uc_campus")
     ethnicities = relationship("Ethnicity", back_populates="uc_campus")
     gpas = relationship("GPA", back_populates="uc_campus")
+    files = relationship("File", back_populates="uc_campus")
 
 class Admission(Base):
     __tablename__ = "admissions"
@@ -70,3 +84,15 @@ class GPA(Base):
 
     high_school = relationship("HighSchool", back_populates="gpas")
     uc_campus = relationship("UCCampus", back_populates="gpas")
+
+class File(Base):
+    __tablename__ = "files"
+
+    id = Column(Integer, primary_key=True, index=True)
+    location = Column(String, unique=True, index=True)
+    high_school_type = Column(Enum(HighSchoolType))
+    uc_campus_id = Column(Integer, ForeignKey("uc_campuses.id"))
+    category = Column(Enum(Category))
+    year = Column(Integer)
+
+    uc_campus = relationship("UCCampus", back_populates="files")
