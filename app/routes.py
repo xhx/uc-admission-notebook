@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify, current_app
 from sql_db.database import get_db
-from sql_db import crud
+from sql_db import crud, models
 import os
 import sys
 from sql_db.database import SessionLocal
@@ -16,24 +16,14 @@ import logging
 
 main = Blueprint('main', __name__)
 
-@main.route('/', methods=['GET', 'POST'])
+@main.route('/', methods=['GET'])
 def index():
     welcome_message = "Welcome to the High School Data Analysis Tool!"
     instructions = [
-        "Upload an Excel file (.xlsx) containing high school data.",
-        "After uploading, you'll be redirected to the query page.",
-        "On the query page, you can analyze the uploaded data."
+        "Use the 'Process Files' link to view all files in the database.",
+        "Use the 'Handle Files' link to add new files to the database.",
+        "After processing, you can analyze the uploaded data."
     ]
-    if request.method == 'POST':
-        if 'file' not in request.files:
-            return redirect(request.url)
-        file = request.files['file']
-        if file.filename == '':
-            return redirect(request.url)
-        if file and file.filename.endswith('.xlsx'):
-            db = next(get_db())
-            crud.process_excel_file(db, file)
-            return redirect(url_for('main.query'))
     return render_template('index.html', welcome_message=welcome_message, instructions=instructions)
 
 @main.route('/query', methods=['GET', 'POST'])
@@ -75,3 +65,63 @@ def handle_files():
         logging.getLogger('werkzeug').error(error_message)
         
         return render_template('handle_files.html', status='error', message=error_message, welcome_message=welcome_message)
+
+@main.route('/process-files', methods=['GET', 'POST'])
+def process_files():
+    try:
+        db = SessionLocal()
+        files = db.query(models.File).all()
+        
+        file_data = []
+        for file in files:
+            file_info = {
+                'id': file.id,
+                'location': file.location,
+                'high_school_type': file.high_school_type.value if file.high_school_type else None,
+                'uc_campus': file.uc_campus.campus_name if file.uc_campus else None,
+                'category': file.category.value if file.category else None,
+                'year': file.year
+            }
+            file_data.append(file_info)
+        
+        return render_template('process_files.html', files=file_data)
+    except Exception as e:
+        error_message = f'Error retrieving files: {str(e)}'
+        current_app.logger.error(error_message)
+        return render_template('process_files.html', error=error_message)
+    finally:
+        db.close()
+
+@main.route('/process-single-file', methods=['POST'])
+def process_single_file():
+    try:
+        db = SessionLocal()
+        data = request.json
+        file_location = data.get('file_location')
+        uc_campus = data.get('uc_campus')
+        category = data.get('category')
+        year = data.get('year')
+
+        # Process the single file
+        success = crud.add_single_file_to_db(db, file_location, uc_campus, category, year)
+
+        response = {
+            'input_parameters': {
+                'file_location': file_location,
+                'uc_campus': uc_campus,
+                'category': category,
+                'year': year
+            },
+            'success': success
+        }
+
+        return jsonify(response)
+
+    except Exception as e:
+        error_message = f'Error processing file: {str(e)}'
+        current_app.logger.error(error_message)
+        return jsonify({'error': error_message}), 400
+    finally:
+        db.close()
+
+

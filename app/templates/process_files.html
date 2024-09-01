@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Process Files</title>
+    <style>
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <h1>Files in Database</h1>
+    {% if error %}
+        <p style="color: red;">{{ error }}</p>
+    {% elif files %}
+        <table>
+            <tr>
+                <th>ID</th>
+                <th>Location</th>
+                <th>High School Type</th>
+                <th>UC Campus</th>
+                <th>Category</th>
+                <th>Year</th>
+            </tr>
+            {% for file in files %}
+                <tr>
+                    <td>{{ file.id }}</td>
+                    <td>{{ file.location }}</td>
+                    <td>{{ file.high_school_type }}</td>
+                    <td>{{ file.uc_campus }}</td>
+                    <td>{{ file.category }}</td>
+                    <td>{{ file.year }}</td>
+                </tr>
+            {% endfor %}
+        </table>
+    {% else %}
+        <p>No files found in the database.</p>
+    {% endif %}
+</body>
+</html>
