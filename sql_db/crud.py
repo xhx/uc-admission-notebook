@@ -174,6 +174,8 @@ def add_files_to_db(db: Session, files_directory: str):
                 uc_campus_name = 'Riverside'
             elif 'Merced' in file:
                 uc_campus_name = 'Merced'
+            elif 'UCSD' in file:
+                uc_campus_name = 'San Diego'
 
             uc_campus = get_uc_campus_by_name(db, uc_campus_name) if uc_campus_name else None
             
