@@ -2,6 +2,8 @@ from sqlalchemy.orm import Session
 from . import models
 import pandas as pd
 import os
+from flask import current_app
+import logging
 
 def process_excel_file(db: Session, file):
     df = pd.read_excel(file)
@@ -122,25 +124,75 @@ def seed_uc_campuses(db: Session):
     db.commit()
 
 def add_files_to_db(db: Session, files_directory: str):
+    current_app.logger.info("Adding files to database")  # This will be visible in Docker logs
+    logging.getLogger('werkzeug').info("Adding files to database")  # This will be visible in Docker logs
+    current_app.logger.info(f"Files directory: {files_directory}")  # This will be visible in Docker logs
+    logging.getLogger('werkzeug').info(f"Files directory: {files_directory}")  # This will be visible in Docker logs
+
+
+
     for root, _, files in os.walk(files_directory):
         for file in files:
             file_path = os.path.join(root, file)
-            relative_path = os.path.relpath(file_path, start=files_directory)
+            location = os.path.abspath(file_path)
             
-            # TODO: Implement logic to extract information from file name
-            # This is a placeholder implementation
-            high_school_type = models.HighSchoolType.ALL
-            uc_campus = get_uc_campus_by_name(db, "Los Angeles")  # Placeholder
-            category = models.Category.GENDER  # Placeholder
-            year = 2023  # Placeholder
+            # Extract information from filename
+            category = None
+            if 'Eth' in file:
+                category = models.Category.ETHNICITY
+            elif 'GPA' in file:
+                category = models.Category.GPA
+            elif 'Gdr' in file:
+                category = models.Category.GENDER
+
+            year = 2023 if '2023' in file else None
+
+            high_school_type = None
+            if 'CA Public' in file:
+                high_school_type = models.HighSchoolType.CA_PUBLIC
+            elif 'CA Private' in file:
+                high_school_type = models.HighSchoolType.CA_PRIVATE
+            elif 'Foreign' in file:
+                high_school_type = models.HighSchoolType.FOREIGN
+            else:
+                high_school_type = models.HighSchoolType.ALL
+
+            uc_campus_name = None
+            if 'Berkeley' in file:
+                uc_campus_name = 'Berkeley'
+            elif 'LA' in file:
+                uc_campus_name = 'Los Angeles'
+            elif 'Davis' in file:
+                uc_campus_name = 'Davis'
+            elif 'Irvine' in file:
+                uc_campus_name = 'Irvine'
+            elif 'UCSB' in file:
+                uc_campus_name = 'Santa Barbara'
+            elif 'UCSC' in file:
+                uc_campus_name = 'Santa Cruz'
+            elif 'Riverside' in file:
+                uc_campus_name = 'Riverside'
+            elif 'Merced' in file:
+                uc_campus_name = 'Merced'
+
+            uc_campus = get_uc_campus_by_name(db, uc_campus_name) if uc_campus_name else None
             
+            # Print extracted information
+            logging.getLogger('werkzeug').info(f"File: {file}")
+            logging.getLogger('werkzeug').info(f"  Location: {location}")
+            logging.getLogger('werkzeug').info(f"  Category: {category}")
+            logging.getLogger('werkzeug').info(f"  Year: {year}")
+            logging.getLogger('werkzeug').info(f"  High School Type: {high_school_type}")
+            logging.getLogger('werkzeug').info(f"  UC Campus: {uc_campus_name}")
+            logging.getLogger('werkzeug').info("---")
+
             # Check if file already exists in the database
-            existing_file = db.query(models.File).filter_by(location=relative_path).first()
+            existing_file = db.query(models.File).filter_by(location=location).first()
             if not existing_file:
                 new_file = models.File(
-                    location=relative_path,
+                    location=location,
                     high_school_type=high_school_type,
-                    uc_campus_id=uc_campus.id,
+                    uc_campus_id=uc_campus.id if uc_campus else None,
                     category=category,
                     year=year
                 )

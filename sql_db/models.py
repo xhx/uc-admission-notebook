@@ -94,5 +94,6 @@ class File(Base):
     uc_campus_id = Column(Integer, ForeignKey("uc_campuses.id"))
     category = Column(Enum(Category))
     year = Column(Integer)
+    is_added_to_db = Column(Boolean, default=False)  # New column
 
     uc_campus = relationship("UCCampus", back_populates="files")
