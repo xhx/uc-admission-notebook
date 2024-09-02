@@ -1,19 +1,17 @@
 # version: '3.8'
 
 services:
-  web:
+  jupyter:
     build: .
     ports:
       - "5000:5000"
     environment:
-      - FLASK_ENV=development
       - DATABASE_URL=${DATABASE_URL}
-      - FLASK_APP=app/__init__.py
     env_file:
       - .env
     volumes:
       - .:/app
-    command: flask run --host=0.0.0.0 --port=5000 --reload
+    command: jupyter notebook --ip=0.0.0.0 --port=5000 --no-browser --allow-root
     logging:
       driver: "json-file"
       options:
