@@ -5,7 +5,7 @@ import os
 import sys
 from sql_db.database import SessionLocal
 import logging
-
+from sql_db.process_csv_file import add_ethnicity_csv_file_to_db, add_gender_csv_file_to_db
 
 
 # # Add the parent directory to sys.path to allow importing from sibling directories
@@ -101,16 +101,34 @@ def process_single_file():
         uc_campus = data.get('uc_campus')
         category = data.get('category')
         year = data.get('year')
+        high_school_type = data.get('high_school_type')
+
+        logging.getLogger('werkzeug').info(f"Processing file: {file_location}, {uc_campus}, {category}, {year}, {high_school_type}")
 
         # Process the single file
-        success = crud.add_single_file_to_db(db, file_location, uc_campus, category, year)
+        if category.upper() == 'ETHNICITY':
+            success = add_ethnicity_csv_file_to_db(db, file_location, uc_campus, year, high_school_type)
+        elif category.upper() == 'GENDER':
+            success = add_gender_csv_file_to_db(db, file_location, uc_campus, year)
+        else:   
+            # Handle other categories if needed
+            success = False
+            current_app.logger.error(f"Unsupported category: {category}")
+
+        if success:
+            # Update the file's is_added_to_db status
+            file = db.query(models.File).filter_by(location=file_location).first()
+            if file:
+                file.is_added_to_db = True
+                db.commit()
 
         response = {
             'input_parameters': {
                 'file_location': file_location,
                 'uc_campus': uc_campus,
                 'category': category,
-                'year': year
+                'year': year,
+                'high_school_type': high_school_type
             },
             'success': success
         }

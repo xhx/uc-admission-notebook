@@ -63,12 +63,12 @@ class UCAdmissionGender(Base):
     high_school_id = Column(Integer, ForeignKey("high_schools.id"))
     uc_campus_id = Column(Integer, ForeignKey("uc_campuses.id"))
     admission_type = Column(String)
-    year = Column(Integer)
     total_applicants = Column(Integer)
     female_applicants = Column(Integer)
     male_applicants = Column(Integer)
     other_applicants = Column(Integer)
     unknown_gender = Column(Integer)
+    academic_year = Column(Integer)
 
     high_school = relationship("HighSchool", back_populates="uc_admission_gender")
     uc_campus = relationship("UCCampus", back_populates="uc_admission_gender")
@@ -82,6 +82,7 @@ class UCAdmissionEthnicity(Base):
     admission_type = Column(String)
     ethnicity = Column(String)
     count = Column(Integer)
+    academic_year = Column(Integer)  # Add this line
 
     high_school = relationship("HighSchool", back_populates="uc_admission_ethnicity")
     uc_campus = relationship("UCCampus", back_populates="uc_admission_ethnicity")
@@ -94,6 +95,7 @@ class UCAdmissionGPA(Base):
     uc_campus_id = Column(Integer, ForeignKey("uc_campuses.id"))
     admission_type = Column(String)
     mean_gpa = Column(Float)
-
+    academic_year = Column(Integer)
+    
     high_school = relationship("HighSchool", back_populates="uc_admission_gpa")
     uc_campus = relationship("UCCampus", back_populates="uc_admission_gpa")

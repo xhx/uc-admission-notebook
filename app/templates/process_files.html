@@ -18,6 +18,39 @@
             background-color: #f2f2f2;
         }
     </style>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+    $(document).ready(function() {
+        $('.process-file-btn').click(function() {
+            var fileId = $(this).data('file-id');
+            var row = $(this).closest('tr');
+            $.ajax({
+                url: '/process-single-file',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    file_id: fileId,
+                    file_location: row.find('.location').text(),
+                    uc_campus: row.find('.uc_campus').text(),
+                    category: row.find('.category').text(),
+                    year: row.find('.year').text(),
+                    high_school_type: row.find('.high_school_type').text()
+                }),
+                success: function(response) {
+                    if (response.success) {
+                        row.find('.is_added_to_db').text('Yes');
+                        row.find('.process-file-btn').prop('disabled', true);
+                    } else {
+                        alert('Failed to process file. Please check the logs.');
+                    }
+                },
+                error: function() {
+                    alert('An error occurred while processing the file.');
+                }
+            });
+        });
+    });
+    </script>
 </head>
 <body>
     <h1>Files in Database</h1>
@@ -32,15 +65,23 @@
                 <th>UC Campus</th>
                 <th>Category</th>
                 <th>Year</th>
+                <th>Added to DB</th>
+                <th>Action</th>
             </tr>
             {% for file in files %}
                 <tr>
                     <td>{{ file.id }}</td>
-                    <td>{{ file.location }}</td>
-                    <td>{{ file.high_school_type }}</td>
-                    <td>{{ file.uc_campus }}</td>
-                    <td>{{ file.category }}</td>
-                    <td>{{ file.year }}</td>
+                    <td class="location">{{ file.location }}</td>
+                    <td class="high_school_type">{{ file.high_school_type }}</td>
+                    <td class="uc_campus">{{ file.uc_campus }}</td>
+                    <td class="category">{{ file.category }}</td>
+                    <td class="year">{{ file.year }}</td>
+                    <td class="is_added_to_db">{{ 'Yes' if file.is_added_to_db else 'No' }}</td>
+                    <td>
+                        <button class="process-file-btn" data-file-id="{{ file.id }}" {{ 'disabled' if file.is_added_to_db }}>
+                            Process File
+                        </button>
+                    </td>
                 </tr>
             {% endfor %}
         </table>
