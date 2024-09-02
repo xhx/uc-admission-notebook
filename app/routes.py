@@ -80,7 +80,8 @@ def process_files():
                 'high_school_type': file.high_school_type.value if file.high_school_type else None,
                 'uc_campus': file.uc_campus.campus_name if file.uc_campus else None,
                 'category': file.category.value if file.category else None,
-                'year': file.year
+                'year': file.year,
+                'is_added_to_db': file.is_added_to_db
             }
             file_data.append(file_info)
         

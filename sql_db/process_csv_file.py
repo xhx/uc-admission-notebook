@@ -38,7 +38,7 @@ def add_ethnicity_csv_file_to_db(db: Session, file, uc_campus_name, year, high_s
     #     logging.getLogger('werkzeug').info(f"Row {index}: {row.to_dict()}")
 
     # Check if required columns are present
-    required_columns = ['School', 'City', 'County/State/ Territory', 'Count']
+    required_columns = ['Calculation1', 'School', 'City', 'County/State/ Territory', 'Count']
     missing_columns = [col for col in required_columns if col not in df.columns]
     if missing_columns:
         error_msg = f"Missing required columns: {', '.join(missing_columns)}"
@@ -54,29 +54,48 @@ def add_ethnicity_csv_file_to_db(db: Session, file, uc_campus_name, year, high_s
     
     uc_campus_id = uc_campus.id
 
+    # Collect all ethnicity records for batch insertion
+    ethnicity_records = []
+
     for _, row in df.iterrows():
         try:
             # Create or update high school
-            high_school = crud.get_high_school_by_name_and_city(db, row['School'], row['City'])
+            uc_school_name = row['Calculation1']
+            high_school = crud.get_high_school_by_uc_school_name(db, uc_school_name)
             if not high_school:
+                if high_school_type.upper() in ['CA_PUBLIC', 'CA_PRIVATE']:
+                    county = row['County/State/ Territory']
+                    state = 'CA'
+                    country = 'United States'
+                elif high_school_type.upper() == 'NON_CA':
+                    county = None
+                    state = row['County/State/ Territory']
+                    country = 'United States'
+                elif high_school_type.upper() == 'FOREIGN':
+                    county = None
+                    state = None
+                    country = row['County/State/ Territory']
+                else:
+                    raise ValueError(f"Invalid high school type: {high_school_type}")
+
                 high_school = crud.create_high_school(db, {
+                    'uc_school_name': uc_school_name,
                     'school_name': row['School'],
                     'city': row['City'],
-                    'county': row['County/State/ Territory'],
-                    'state': 'CA',  # Assuming all schools are in California
-                    'country': 'United States',
+                    'county': county,
+                    'state': state,
+                    'country': country,
                     'is_public': high_school_type.upper() == 'CA_PUBLIC'
                 })
-            
             # Get admission type from the 'Count' column
             admission_type = row['Count']
             
             # Create ethnicity records
-            ethnicities = ['African American', 'American Indian', 'Hispanic/ Latinx', 'Pacific Islander', 'Asian', 'White', 'Domestic Unknown', "Int'l"]
+            ethnicities = ['All','African American', 'American Indian', 'Hispanic/ Latinx', 'Pacific Islander', 'Asian', 'White', 'Domestic Unknown', "Int'l"]
             for ethnicity in ethnicities:
                 count = row.get(ethnicity, 0)  # Use 0 if the column doesn't exist
                 if pd.notna(count):  # Check if the value is not NaN
-                    crud.create_uc_admission_ethnicity(db, {
+                    ethnicity_records.append({
                         'high_school_id': high_school.id,
                         'uc_campus_id': uc_campus_id,
                         'admission_type': admission_type,
@@ -91,6 +110,10 @@ def add_ethnicity_csv_file_to_db(db: Session, file, uc_campus_name, year, high_s
             db.rollback()
             # Continue processing other rows
             continue
+
+    # Perform batch insertion of ethnicity records
+    if ethnicity_records:
+        crud.bulk_create_uc_admission_ethnicity(db, ethnicity_records)
 
     # Commit the transaction after processing all rows
     db.commit()

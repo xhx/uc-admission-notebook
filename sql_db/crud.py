@@ -61,7 +61,8 @@ def seed_uc_campuses(db: Session):
         {"campus_name": "Santa Barbara", "location": "Santa Barbara, CA"},
         {"campus_name": "Riverside", "location": "Riverside, CA"},
         {"campus_name": "Merced", "location": "Merced, CA"},
-        {"campus_name": "Santa Cruz", "location": "Santa Cruz, CA"}
+        {"campus_name": "Santa Cruz", "location": "Santa Cruz, CA"},
+        {"campus_name": "San Francisco", "location": "San Francisco, CA"}
     ]
 
     for campus_data in campuses:
@@ -77,8 +78,6 @@ def add_files_to_db(db: Session, files_directory: str):
     logging.getLogger('werkzeug').info("Adding files to database")  # This will be visible in Docker logs
     current_app.logger.info(f"Files directory: {files_directory}")  # This will be visible in Docker logs
     logging.getLogger('werkzeug').info(f"Files directory: {files_directory}")  # This will be visible in Docker logs
-
-
 
     for root, _, files in os.walk(files_directory):
         for file in files:
@@ -103,6 +102,8 @@ def add_files_to_db(db: Session, files_directory: str):
                 high_school_type = models.HighSchoolType.CA_PRIVATE
             elif 'Foreign' in file:
                 high_school_type = models.HighSchoolType.FOREIGN
+            elif 'non-CA' in file:
+                high_school_type = models.HighSchoolType.NON_CA
             else:
                 high_school_type = models.HighSchoolType.ALL
 
@@ -125,6 +126,8 @@ def add_files_to_db(db: Session, files_directory: str):
                 uc_campus_name = 'Merced'
             elif 'UCSD' in file:
                 uc_campus_name = 'San Diego'
+            elif 'San Francisco' in file:
+                uc_campus_name = 'San Francisco'
 
             uc_campus = get_uc_campus_by_name(db, uc_campus_name) if uc_campus_name else None
             
@@ -168,3 +171,10 @@ def create_uc_admission_ethnicity(db: Session, ethnicity_data: dict):
     db.add(db_ethnicity)
     db.flush()
     return db_ethnicity
+
+def get_high_school_by_uc_school_name(db: Session, uc_school_name: str):
+    return db.query(models.HighSchool).filter(models.HighSchool.uc_school_name == uc_school_name).first()
+
+def bulk_create_uc_admission_ethnicity(db: Session, ethnicity_data_list: list):
+    db.bulk_insert_mappings(models.UCAdmissionEthnicity, ethnicity_data_list)
+    db.commit()

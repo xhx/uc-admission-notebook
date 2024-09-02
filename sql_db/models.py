@@ -4,9 +4,9 @@ from .database import Base
 import enum
 
 class HighSchoolType(enum.Enum):
-    CA_PUBLIC = "CA public"
-    CA_PRIVATE = "CA private"
-    NON_CA = "non-CA"
+    CA_PUBLIC = "CA_public"
+    CA_PRIVATE = "CA_private"
+    NON_CA = "non_CA"
     FOREIGN = "Foreign"
     ALL = "All"
 
@@ -20,7 +20,8 @@ class HighSchool(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     school_name = Column(String, index=True)
-    city = Column(String)
+    city = Column(String, index=True)
+    uc_school_name = Column(String, index=True)  # New column
     county = Column(String)
     state = Column(String)
     country = Column(String, default="United States")
@@ -82,7 +83,7 @@ class UCAdmissionEthnicity(Base):
     admission_type = Column(String)
     ethnicity = Column(String)
     count = Column(Integer)
-    academic_year = Column(Integer)  # Add this line
+    academic_year = Column(Integer)
 
     high_school = relationship("HighSchool", back_populates="uc_admission_ethnicity")
     uc_campus = relationship("UCCampus", back_populates="uc_admission_ethnicity")

@@ -34,7 +34,8 @@
                     uc_campus: row.find('.uc_campus').text(),
                     category: row.find('.category').text(),
                     year: row.find('.year').text(),
-                    high_school_type: row.find('.high_school_type').text()
+                    high_school_type: row.find('.high_school_type').text(),
+                    is_added_to_db: row.find('.is_added_to_db').text() // Extract text here
                 }),
                 success: function(response) {
                     if (response.success) {
