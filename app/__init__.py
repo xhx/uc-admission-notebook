@@ -1,4 +1,3 @@
-from flask import Flask
 from dotenv import load_dotenv
 import os
 from sql_db.database import engine, SessionLocal
@@ -10,9 +9,6 @@ from sqlalchemy.orm import Session
 load_dotenv()
 
 def create_app():
-    app = Flask(__name__)
-    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default_secret_key')
-    
     # Check if all tables exist and create them if they don't
     inspector = inspect(engine)
     tables = models.Base.metadata.tables.keys()
@@ -27,8 +23,4 @@ def create_app():
         uc_campuses_count = db.scalar(select(models.UCCampus).limit(1))
         if uc_campuses_count is None:
             seed_uc_campuses(db)
-    
-    from .routes import main
-    app.register_blueprint(main)
 
-    return app

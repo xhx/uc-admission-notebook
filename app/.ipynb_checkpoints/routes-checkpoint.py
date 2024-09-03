@@ -101,12 +101,10 @@ def process_single_file(file_location, uc_campus, category, year, high_school_ty
         db.close()
 
 def get_files_dataframe():
-    print('hello world')
     try:
         db = SessionLocal()
         df = get_files_as_dataframe(db)
-        # return df.to_dict(orient='records')  # Convert DataFrame to list of dictionaries for JSON serialization
-        return df
+        return df.to_dict(orient='records')  # Convert DataFrame to list of dictionaries for JSON serialization
     except Exception as e:
         error_message = f'Error retrieving files as DataFrame: {str(e)}'
         logging.error(error_message)

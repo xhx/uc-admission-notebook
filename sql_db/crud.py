@@ -4,6 +4,9 @@ import pandas as pd
 import os
 from flask import current_app
 import logging
+from sqlalchemy import select
+from sqlalchemy.exc import PendingRollbackError
+from sqlalchemy import and_
 
 def create_or_update_high_school(db: Session, high_school_data):
     high_school = db.query(models.HighSchool).filter(models.HighSchool.school_name == high_school_data['school_name']).first()
@@ -18,7 +21,11 @@ def create_or_update_high_school(db: Session, high_school_data):
     return high_school
 
 def get_uc_campus_by_name(db: Session, campus_name: str):
-    return db.query(models.UCCampus).filter(models.UCCampus.campus_name == campus_name).first()
+    try:
+        return db.query(models.UCCampus).filter(models.UCCampus.campus_name == campus_name).first()
+    except PendingRollbackError:
+        db.rollback()
+        return db.query(models.UCCampus).filter(models.UCCampus.campus_name == campus_name).first()
 
 def create_uc_admission_gender(db: Session, admission_data):
     admission = models.UCAdmissionGender(**admission_data)
@@ -155,10 +162,25 @@ def add_files_to_db(db: Session, files_directory: str):
     db.commit()
 
 def get_high_school_by_name_and_city(db: Session, school_name: str, city: str):
-    return db.query(models.HighSchool).filter(
-        models.HighSchool.school_name == school_name,
-        models.HighSchool.city == city
-    ).first()
+    # First, try to find schools by name (case insensitive)
+    schools = db.query(models.HighSchool).filter(
+        models.HighSchool.school_name.ilike(f"%{school_name}%")
+    ).all()
+    
+    # If city is empty or None, return all matching schools
+    if not city:
+        return schools
+    
+    # If only one school is found, return it
+    if len(schools) == 1:
+        return schools[0]
+    
+    # If multiple schools are found, use city to find a match (case insensitive)
+    elif len(schools) > 1:
+        return next((school for school in schools if school.city.lower() == city.lower()), None)
+    
+    # If no schools are found, return None
+    return None
 
 def create_high_school(db: Session, school_data: dict):
     db_school = models.HighSchool(**school_data)
@@ -178,3 +200,133 @@ def get_high_school_by_uc_school_name(db: Session, uc_school_name: str):
 def bulk_create_uc_admission_ethnicity(db: Session, ethnicity_data_list: list):
     db.bulk_insert_mappings(models.UCAdmissionEthnicity, ethnicity_data_list)
     db.commit()
+
+def bulk_create_uc_admission_gender(db: Session, gender_data_list: list):
+    db.bulk_insert_mappings(models.UCAdmissionGender, gender_data_list)
+    db.commit()
+
+def bulk_create_uc_admission_gpa(db: Session, gpa_data_list: list):
+    db.bulk_insert_mappings(models.UCAdmissionGPA, gpa_data_list)
+    db.commit()
+
+
+def get_files_as_dataframe(db: Session):
+    return pd.read_sql(select(models.File), db.bind)
+
+def get_high_school_data(db: Session, school_name: str, city: str):
+    # First, get the high school
+    high_school = get_high_school_by_name_and_city(db, school_name, city)
+    
+    if not high_school:
+        return None  # High school not found
+    
+    # Query data from all three tables
+    ethnicity_data = db.query(models.UCAdmissionEthnicity).filter(
+        models.UCAdmissionEthnicity.high_school_id == high_school.id
+    ).all()
+    
+    gender_data = db.query(models.UCAdmissionGender).filter(
+        models.UCAdmissionGender.high_school_id == high_school.id
+    ).all()
+    
+    gpa_data = db.query(models.UCAdmissionGPA).filter(
+        models.UCAdmissionGPA.high_school_id == high_school.id
+    ).all()
+    
+
+
+    # Prepare the result dictionary
+    result = {
+        "high_school": {
+            "id": high_school.id,
+            "uc_school_name": high_school.uc_school_name,
+            "school_name": high_school.school_name,
+            "city": high_school.city,
+            "county": high_school.county,
+            "state": high_school.state,
+            "country": high_school.country,
+            "is_public": high_school.is_public
+        },
+        "ethnicity_data": [],
+        "gender_data": [],
+        "gpa_data": []
+    }
+    
+    # Add ethnicity data
+    for entry in ethnicity_data:
+        result["ethnicity_data"].append({
+            "uc_campus_id": entry.uc_campus_id,
+            "academic_year": entry.academic_year,
+            "admission_type": entry.admission_type,
+            "ethnicity": entry.ethnicity,
+            "count": entry.count
+        })
+    
+    # Add gender data
+    for entry in gender_data:
+        result["gender_data"].append({
+            "uc_campus_id": entry.uc_campus_id,
+            "academic_year": entry.academic_year,
+            "admission_type": entry.admission_type,
+            "total_applicants": entry.total_applicants,
+            "female_applicants": entry.female_applicants,
+            "male_applicants": entry.male_applicants,
+            "other_applicants": entry.other_applicants,
+            "unknown_gender": entry.unknown_gender
+        })
+    
+    # Add GPA data
+    for entry in gpa_data:
+        result["gpa_data"].append({
+            "uc_campus_id": entry.uc_campus_id,
+            "academic_year": entry.academic_year,
+            "admission_type": entry.admission_type,
+            "mean_gpa": entry.mean_gpa
+        })
+
+
+
+
+    # Generate nested dictionary
+    nested_result = {
+        "high_school": result["high_school"]
+    }
+
+    # Get unique UC campus IDs
+    uc_campus_ids = set([entry["uc_campus_id"] for entry in result["ethnicity_data"] + result["gender_data"] + result["gpa_data"]])
+
+    # Create nested structure for each UC campus
+    for campus_id in uc_campus_ids:
+        campus_name = db.query(models.UCCampus).filter_by(id=campus_id).first().campus_name
+        nested_result[campus_name] = {
+            "App": {},
+            "Adm": {},
+            "Enr": {}
+        }
+
+        # Add ethnicity data
+        for entry in result["ethnicity_data"]:
+            if entry["uc_campus_id"] == campus_id:
+                nested_result[campus_name][entry["admission_type"]][entry["ethnicity"]] = entry["count"]
+
+        # Add gender data
+        for entry in result["gender_data"]:
+            if entry["uc_campus_id"] == campus_id:
+                nested_result[campus_name][entry["admission_type"]].update({
+                    "total_applicants": entry["total_applicants"] if entry["total_applicants"] is not None else None,
+                    "male_applicants": entry["male_applicants"] if entry["male_applicants"] is not None else None,
+                    "female_applicants": entry["female_applicants"] if entry["female_applicants"] is not None else None,
+                    "other_applicants": entry["other_applicants"] if entry["other_applicants"] is not None else None,
+                    "unknown_gender": entry["unknown_gender"] if entry["unknown_gender"] is not None else None
+                })
+
+        # Add GPA data
+        for entry in result["gpa_data"]:
+            if entry["uc_campus_id"] == campus_id:
+                nested_result[campus_name][entry["admission_type"]]["Mean GPA"] = entry["mean_gpa"]
+
+    return nested_result
+
+
+
+
