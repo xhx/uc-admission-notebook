@@ -7,6 +7,8 @@ import logging
 from sqlalchemy import select
 from sqlalchemy.exc import PendingRollbackError
 from sqlalchemy import and_
+import re
+
 
 def create_or_update_high_school(db: Session, high_school_data):
     high_school = db.query(models.HighSchool).filter(models.HighSchool.school_name == high_school_data['school_name']).first()
@@ -81,9 +83,7 @@ def seed_uc_campuses(db: Session):
     db.commit()
 
 def add_files_to_db(db: Session, files_directory: str):
-    current_app.logger.info("Adding files to database")  # This will be visible in Docker logs
     logging.getLogger('werkzeug').info("Adding files to database")  # This will be visible in Docker logs
-    current_app.logger.info(f"Files directory: {files_directory}")  # This will be visible in Docker logs
     logging.getLogger('werkzeug').info(f"Files directory: {files_directory}")  # This will be visible in Docker logs
 
     for root, _, files in os.walk(files_directory):
@@ -100,7 +100,15 @@ def add_files_to_db(db: Session, files_directory: str):
             elif 'Gdr' in file:
                 category = models.Category.GENDER
 
-            year = 2023 if '2023' in file else None
+            # Extract the last 4 digits from the filename
+            year = re.search(r'\d{4}(?=\.csv$)', file)
+            if year:
+                year = int(year.group())
+                print(f"Extracted year: {year}")
+            else:
+                print("Year not found in the filename")
+
+
 
             high_school_type = None
             if 'CA Public' in file:
